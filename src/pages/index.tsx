@@ -59,27 +59,29 @@ export default function Home() {
       }
     };
 
-    setupCamera();
-  }, []);
-
-  useEffect(() => {
     const loadModels = async () => {
-      const MODEL_URL = `${window.location.origin}/models`;
-      console.log("Loading models...");
-      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
-      console.log("Models loaded.");
+      try {
+        const MODEL_URL = `${window.location.origin}/models`;
+        console.log("Loading models...");
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+        console.log("Models loaded.");
+      } catch (error) {
+        console.error("Error loading models:", error);
+      }
     };
 
     loadModels().then(() => {
-      if (videoRef.current) {
-        videoRef.current.addEventListener('loadeddata', detectEmotion);
-        console.log("Video loaded, starting emotion detection.");
-      }
+      setupCamera().then(() => {
+        if (videoRef.current) {
+          videoRef.current.addEventListener('loadeddata', detectEmotion);
+          console.log("Video loaded, starting emotion detection.");
+        }
+      });
     });
-  }, [videoRef.current]);
+  }, []);
 
   const detectEmotion = async () => {
     if (videoRef.current && canvasRef.current) {
@@ -135,4 +137,3 @@ export default function Home() {
     </ErrorBoundary>
   );
 }
-
