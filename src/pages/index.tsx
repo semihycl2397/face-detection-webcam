@@ -1,5 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, ReactNode } from 'react';
 import * as faceapi from 'face-api.js';
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.log("Error caught in ErrorBoundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <h1>Something went wrong.</h1>;
+    }
+
+    return this.props.children;
+  }
+}
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -8,18 +39,23 @@ export default function Home() {
 
   useEffect(() => {
     const setupCamera = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-      });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await new Promise<void>((resolve) => {
-          videoRef.current!.onloadedmetadata = () => {
-            resolve();
-          };
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
         });
-        videoRef.current.play();
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await new Promise<void>((resolve) => {
+            videoRef.current!.onloadedmetadata = () => {
+              resolve();
+            };
+          });
+          videoRef.current.play();
+          console.log("Camera setup complete.");
+        }
+      } catch (error) {
+        console.error("Error setting up camera:", error);
       }
     };
 
@@ -28,19 +64,22 @@ export default function Home() {
 
   useEffect(() => {
     const loadModels = async () => {
-      const MODEL_URL = `${window.location.origin}/models`;
+      const MODEL_URL = '/models';
+      console.log("Loading models...");
       await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
       await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
       await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
       await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+      console.log("Models loaded.");
     };
 
     loadModels().then(() => {
       if (videoRef.current) {
         videoRef.current.addEventListener('loadeddata', detectEmotion);
+        console.log("Video loaded, starting emotion detection.");
       }
     });
-  }, []);
+  }, [videoRef.current]);
 
   const detectEmotion = async () => {
     if (videoRef.current && canvasRef.current) {
@@ -80,15 +119,20 @@ export default function Home() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      <div style={{ position: 'relative', marginRight: '20px' }}>
-        <video ref={videoRef} width="640" height="480" autoPlay muted style={{ display: 'block' }} />
-        <div ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0 }} />
-      </div>
+    <ErrorBoundary>
       <div>
-        <h1>Gerçek Zamanlı Duygu Tanıma</h1>
-        <h2>Tespit Edilen Duygu: {emotion}</h2>
+        <h1>Hello World</h1>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div style={{ position: 'relative', marginRight: '20px' }}>
+            <video ref={videoRef} width="640" height="480" autoPlay muted style={{ display: 'block' }} />
+            <div ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0 }} />
+          </div>
+          <div>
+            <h1>Gerçek Zamanlı Duygu Tanıma</h1>
+            <h2>Tespit Edilen Duygu: {emotion}</h2>
+          </div>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
