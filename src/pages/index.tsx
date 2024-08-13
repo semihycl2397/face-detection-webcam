@@ -64,7 +64,7 @@ export default function Home() {
 
   useEffect(() => {
     const loadModels = async () => {
-      const MODEL_URL = '/models';
+      const MODEL_URL = `${window.location.origin}/models`;
       console.log("Loading models...");
       await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
       await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
@@ -121,7 +121,6 @@ export default function Home() {
   return (
     <ErrorBoundary>
       <div>
-        <h1>Hello World</h1>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
           <div style={{ position: 'relative', marginRight: '20px' }}>
             <video ref={videoRef} width="640" height="480" autoPlay muted style={{ display: 'block' }} />
