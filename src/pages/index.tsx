@@ -35,59 +35,49 @@ export default function Home() {
       await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
     };
 
-    loadModels();
+    loadModels().then(() => {
+      if (videoRef.current) {
+        videoRef.current.addEventListener('loadeddata', detectEmotion);
+      }
+    });
   }, []);
 
-  useEffect(() => {
-    let animationFrameId: number;
+  const detectEmotion = async () => {
+    if (videoRef.current && canvasRef.current) {
+      const canvas = faceapi.createCanvasFromMedia(videoRef.current);
+      canvasRef.current.appendChild(canvas);
 
-    const detectEmotion = async () => {
-      if (videoRef.current && canvasRef.current) {
-        const canvas = faceapi.createCanvasFromMedia(videoRef.current);
-        canvasRef.current.appendChild(canvas);
+      const displaySize = { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight };
+      faceapi.matchDimensions(canvas, displaySize);
 
-        const displaySize = { width: videoRef.current.width, height: videoRef.current.height };
-        faceapi.matchDimensions(canvas, displaySize);
+      const processVideo = async () => {
+        const detections = await faceapi.detectAllFaces(videoRef.current!, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceExpressions();
 
-        const processVideo = async () => {
-          const detections = await faceapi.detectAllFaces(videoRef.current!, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks()
-            .withFaceExpressions();
+        const resizedDetections = faceapi.resizeResults(detections, displaySize);
+        canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height);
+        faceapi.draw.drawDetections(canvas, resizedDetections);
+        faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+        faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
 
-          const resizedDetections = faceapi.resizeResults(detections, displaySize);
-          canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height);
-          faceapi.draw.drawDetections(canvas, resizedDetections);
-          faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
-          faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+        if (detections.length > 0) {
+          const expression = detections[0].expressions;
+          const maxValue = Math.max(...Object.values(expression));
+          const emotion = Object.keys(expression).filter((item) => {
+            return (expression[item as keyof faceapi.FaceExpressions] === maxValue);
+          }).join(', ');
+          setEmotion(emotion);
+        }
 
-          if (detections.length > 0) {
-            const expression = detections[0].expressions;
-            const maxValue = Math.max(...Object.values(expression));
-            const emotion = Object.keys(expression).filter((item) => {
-              return (expression[item as keyof faceapi.FaceExpressions] === maxValue);
-            }).join(', ');
-            setEmotion(emotion);
-          }
+        requestAnimationFrame(processVideo);
+      };
 
-          animationFrameId = requestAnimationFrame(processVideo);
-        };
-
-        processVideo();
-      }
-    };
-
-    if (videoRef.current && videoRef.current.readyState >= 2) {
-      detectEmotion();
-    } else if (videoRef.current) {
-      videoRef.current.addEventListener('loadeddata', detectEmotion);
+      processVideo();
+    } else {
+      console.error("Video element or canvas element is not available, or video is not ready yet.");
     }
-
-    return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-  }, [videoRef]);
+  };
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
